@@ -43,7 +43,7 @@ disp.show()
 # Open a new log file.
 log = Logfile(filename = LOGFILE)
 # TODO: Write header.
-log.write(["trialnr", "block", "stim", "keypress", "go_nogo", "face_onset", "signal_onset","resp_onset", "RT", "accuracy", "respmap"])
+log.write(["trialnr", "block", "run","stim", "keypress", "go_nogo", "face_onset", "signal_onset","resp_onset", "RT", "accuracy", "respmap"])
 
 # Initialise the eye tracker.
 tracker = EyeTracker(disp)
@@ -107,31 +107,44 @@ for run in RUNS: # for each run
 			trials[run][i][ii][1] = conds[ii] # trial type 
 			trials[run][i][ii][2] = itis[ii] # iti time
 			trials[run][i][ii][3] = onsets[ii] # signal onset time 
-			trials[run][i][ii][4] = [[]] * 2
+			trials[run][i][ii][4] = [[]] * 3
 			# now pre-generate the screens! 
 			# Note: this is code efficient but not memory efficient (i.e. I am lazy and would rather pre-load almost twice the number of screens, because this is why we have RAM)
 
 			tempstim = Screen()
 			#tempstim.draw_image(RESDIR + trials[run][i][ii][0], pos=DISPCENTRE)# draw face on center of screen 
-			tempstim.draw_image(RESDIR + 'test.jpg', pos=DISPCENTRE)# draw face on center of screen 
+			tempstim.draw_image(RESDIR + trials[run][i][ii][0], pos=DISPCENTRE, scale=0.5)# draw face on center of screen 
 			trials[run][i][ii][4][0] = tempstim
 
 			tempsig = Screen()
 			#tempsig.draw_image(RESDIR + trials[run][i][ii][0], pos=DISPCENTRE)# draw face on center of screen
-			tempstim.draw_image(RESDIR + 'test.jpg', pos=DISPCENTRE)# draw face on center of screen 
+			tempsig.draw_image(RESDIR + trials[run][i][ii][0], pos=DISPCENTRE, scale=0.5)# draw face on center of screen 
+
+			tempfeed = Screen()
+			tempfeed.draw_image(RESDIR + trials[run][i][ii][0], pos=DISPCENTRE, scale=0.5)#
 			#RESPMAP 0 = go squares, no-go circles 
+
+			square_sz = 100
+			square_off = square_sz/2
+			pen_width = 6
+			circle_sz = 50
 			# 1 = go circles, no-go squares
 			if conds[ii] == 'go':
 				if RESPMAP == 0:
-					tempsig.draw_rect(colour=None, x=DISPCENTRE[0], y=DISPCENTRE[1], w=50, h=50, pw=1, fill=False)
+					tempsig.draw_rect(colour=None, x=DISPCENTRE[0]-square_off, y=DISPCENTRE[1]-square_off, w=square_sz, h=square_sz, pw=pen_width, fill=False)
+					tempfeed.draw_rect(colour=(128,128,128), x=DISPCENTRE[0]-square_off, y=DISPCENTRE[1]-square_off, w=square_sz, h=square_sz, pw=pen_width, fill=False)
 				else: 
-					tempsig.draw_circle(colour=None, pos=DISPCENTRE, r=50, pw=1, fill=False)
+					tempsig.draw_circle(colour=None, pos=DISPCENTRE, r=circle_sz, pw=pen_width, fill=False)
+					tempfeed.draw_circle(colour=(128,128,128), pos=DISPCENTRE, r=circle_sz, pw=pen_width, fill=False)
 			if conds[ii] == 'no-go':
 				if RESPMAP == 1:
-					tempsig.draw_rect(colour=None, x=DISPCENTRE[0], y=DISPCENTRE[1], w=50, h=50, pw=1, fill=False)
+					tempsig.draw_rect(colour=None, x=DISPCENTRE[0]-square_off, y=DISPCENTRE[1]-square_off, w=square_sz, h=square_sz, pw=pen_width, fill=False)
+					tempfeed.draw_rect(colour=(128,128,128), x=DISPCENTRE[0]-square_off, y=DISPCENTRE[1]-square_off, w=square_sz, h=square_sz, pw=pen_width, fill=False)
 				else: 
-					tempsig.draw_circle(colour=None, pos=DISPCENTRE, r=50, pw=1, fill=False)
+					tempsig.draw_circle(colour=None, pos=DISPCENTRE, r=circle_sz, pw=pen_width, fill=False)
+					tempfeed.draw_circle(colour=(128,128,128), pos=DISPCENTRE, r=circle_sz, pw=pen_width, fill=False)
 			trials[run][i][ii][4][1] = tempsig 
+			trials[run][i][ii][4][2] = tempfeed
 
 
 
@@ -237,23 +250,55 @@ for i, currRun in enumerate(trials):
 			#display face and signal and pause for the remainder of face duration 
 			disp.fill(currTrial[4][1])
 			signal_onset = disp.show()
-			timer.pause(FACE_DURATION - currTrial[3])
+			#timer.pause(FACE_DURATION - currTrial[3])
 
 			# response window and wait for response or timeout 
-			disp.fill(fix_screen)
-			response_onset = disp.show()
-			t1 = copy.copy(response_onset)
+			#disp.fill(fix_screen)
+			#response_onset = disp.show()
+			t1 = copy.copy(signal_onset)
 
 			if MRI: # if MRI repeatedly loop until button state changes or response timeout is met
 				btn_pressed = False # set flag to false
-				while btn_pressed != True and t1 - response_onset < RESPONSE_TIMEOUT:
+				while btn_pressed != True and t1 - signal_onset < RESPONSE_TIMEOUT:
 					btn_list, state = MRI.get_button_state(button_list = [MAIN_BUT])
 					if state[0] != 0:
 						btn_pressed = True
-				else: 
-					mouse.get_clicked(timeout = RESPONSE_TIMEOUT)
+			else: 
+				mouse.get_clicked(timeout = RESPONSE_TIMEOUT)
 
 
 
+			disp.fill(currTrial[4][2])
+			time_resp = disp.show()
+			rt = time_resp - t1
+			if rt >= RESPONSE_TIMEOUT:
+				keypress = 0
+			else:
+				keypress = 1 
+			time_left = RESPONSE_TIMEOUT - rt
+			print(rt, time_left)
+			timer.pause(time_left)
+
+			# log this trial
+			if currTrial[1] == 'go':
+				if keypress == 1: 
+					accu = 1
+				else:
+					accu = 0
+			else:
+				if keypress == 1:
+					accu = 0
+				else:
+					accu = 1 
+			#log.write(["trialnr", "block", "run","stim", "keypress", "go_nogo", "face_onset", "signal_onset","resp_onset", "RT", "accuracy", "respmap"])
+			#log.write(["trialnr", "block","run", "stim", "keypress", "go_nogo", "face_onset", "signal_onset","resp_onset", "RT", "accuracy", "respmap"])
+			log.write([str(iii), str(ii), str(i), currTrial[0], str(keypress), currTrial[1], str(stim_onset), str(signal_onset), str(time_resp), str(rt), str(accu), str(RESPMAP)])
+
+
+
+#Ending stuff 
+log.close()
+tracker.close()
+disp.close()
 
 

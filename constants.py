@@ -51,7 +51,7 @@ RUNS = [0, 1]
 BLOCKS= ['n_g', 'n_n', 'h_g', 'h_n', 's_g', 's_n', 'c_g', 'c_n']
 
 NO_GO_TRIALS = 5 
-TRIALS_PER_BLOCK = 18
+TRIALS_PER_BLOCK = 9
 
 #MEG Button box info 
 # button_list = ["S3", "S4", "S5", "S6", "S7"]
