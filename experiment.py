@@ -16,7 +16,7 @@ import pygaze.libtime as timer
 from libmri import *
 
 
-MRI = False; # Flag for using button box and waiting for pulses/ seinding triggers etc 
+MRI = True; # Flag for using button box and waiting for pulses/ seinding triggers etc 
 
 ##############
 # INITIALISE #
@@ -43,7 +43,7 @@ disp.show()
 # Open a new log file.
 log = Logfile(filename = LOGFILE)
 # TODO: Write header.
-log.write(["trialnr", "block", "run","stim", "keypress", "go_nogo", "face_onset", "signal_onset","resp_onset", "RT", "accuracy", "respmap"])
+log.write(["trialnr", "block", "run","stim", "keypress", "go_nogo", "face_onset", "signal_onset","resp_onset", "RT", "accuracy", "respmap", "block_type"])
 
 # Initialise the eye tracker.
 tracker = EyeTracker(disp)
@@ -102,26 +102,33 @@ for run in RUNS: # for each run
 		random.shuffle(onsets)
 		print(itis[0])
 		for ii in range(TRIALS_PER_BLOCK): # loop through all the trials 
-			trials[run][i][ii] = [[]] * 5
-			trials[run][i][ii][0] = prefix + '_' + str(ii) + '.jpg' #image name 
+			trials[run][i][ii] = [[]] * 6
+			# DIRTY HACK!
+			if ii >= 9:
+				trials[run][i][ii][0] = prefix + '_' + str(ii+1) + '.jpg' #image name 
+			else:
+				trials[run][i][ii][0] = prefix + '_' + str(ii) + '.jpg' #image name 
+			
 			trials[run][i][ii][1] = conds[ii] # trial type 
 			trials[run][i][ii][2] = itis[ii] # iti time
 			trials[run][i][ii][3] = onsets[ii] # signal onset time 
 			trials[run][i][ii][4] = [[]] * 3
+			trials[run][i][ii][5] = block
 			# now pre-generate the screens! 
 			# Note: this is code efficient but not memory efficient (i.e. I am lazy and would rather pre-load almost twice the number of screens, because this is why we have RAM)
 
 			tempstim = Screen()
 			#tempstim.draw_image(RESDIR + trials[run][i][ii][0], pos=DISPCENTRE)# draw face on center of screen 
-			tempstim.draw_image(RESDIR + trials[run][i][ii][0], pos=DISPCENTRE, scale=0.5)# draw face on center of screen 
+
+			tempstim.draw_image(os.path.join(RESDIR, trials[run][i][ii][0]), pos=DISPCENTRE, scale=0.5)# draw face on center of screen 
 			trials[run][i][ii][4][0] = tempstim
 
 			tempsig = Screen()
 			#tempsig.draw_image(RESDIR + trials[run][i][ii][0], pos=DISPCENTRE)# draw face on center of screen
-			tempsig.draw_image(RESDIR + trials[run][i][ii][0], pos=DISPCENTRE, scale=0.5)# draw face on center of screen 
+			tempsig.draw_image(os.path.join(RESDIR, trials[run][i][ii][0]), pos=DISPCENTRE, scale=0.5)# draw face on center of screen 
 
 			tempfeed = Screen()
-			tempfeed.draw_image(RESDIR + trials[run][i][ii][0], pos=DISPCENTRE, scale=0.5)#
+			tempfeed.draw_image(os.path.join(RESDIR, trials[run][i][ii][0]), pos=DISPCENTRE, scale=0.5)#
 			#RESPMAP 0 = go squares, no-go circles 
 
 			square_sz = 100
@@ -196,7 +203,7 @@ for i, currRun in enumerate(trials):
 	if MRI: # if MEG repeatedly loop until button state changes
 		btn_pressed = False # set flag to false
 		while btn_pressed != True:
-			btn_list, state = MRI.get_button_state(button_list = [MAIN_BUT])
+			btn_list, state = trigbox.get_button_state(button_list = [MAIN_BUT])
 			if state[0] != 0:
 				btn_pressed = True
 	else: 
@@ -204,6 +211,8 @@ for i, currRun in enumerate(trials):
 
 	# loop through blocks
 	for ii, currBlock in enumerate(currRun): 
+
+
 		disp.fill(inter_block); # fill display
 		disp.show() # show display
 		
@@ -211,11 +220,23 @@ for i, currRun in enumerate(trials):
 		if MRI: # if MEG repeatedly loop until button state changes
 			btn_pressed = False # set flag to false
 			while btn_pressed != True:
-				btn_list, state = MRI.get_button_state(button_list = [MAIN_BUT])
+				btn_list, state = trigbox.get_button_state(button_list = [MAIN_BUT])
 				if state[0] != 0:
 					btn_pressed = True
 		else: 
 			mouse.get_clicked()
+
+		#TODO: Wait for Sync 
+		# adjusted_ITI = currTrial[2] - synctime 
+		if MRI:
+			i = 0
+			triggered = False
+			while not triggered:
+				t, triggered, timed_out = trigbox.wait_for_sync(timeout=60.0)
+				i += 1
+				if i > 3:
+					print("DEBUG: TOO MANY TIMEOUTS! BROKEN SYNC!")
+					break
 
 		#loop through trials 
 		for iii, currTrial in enumerate(currBlock): 
@@ -240,7 +261,7 @@ for i, currRun in enumerate(trials):
 			#display ITI and pause for length of ITI 
 			disp.fill(fix_screen)
 			iti_onset = disp.show()
-			timer.pause(currTrial[2]) 
+			timer.pause(currTrial[2]) #ITI delay
 
 			#display face only and pause for the stimulus onset
 			disp.fill(currTrial[4][0])
@@ -260,24 +281,25 @@ for i, currRun in enumerate(trials):
 			if MRI: # if MRI repeatedly loop until button state changes or response timeout is met
 				btn_pressed = False # set flag to false
 				while btn_pressed != True and t1 - signal_onset < RESPONSE_TIMEOUT:
-					btn_list, state = MRI.get_button_state(button_list = [MAIN_BUT])
+					btn_list, state = trigbox.get_button_state(button_list = [MAIN_BUT])
+					t1 = timer.get_time()
 					if state[0] != 0:
 						btn_pressed = True
 			else: 
-				mouse.get_clicked(timeout = RESPONSE_TIMEOUT)
+				button, pos, t1, = mouse.get_clicked(timeout = RESPONSE_TIMEOUT)
 
 
 
 			disp.fill(currTrial[4][2])
 			time_resp = disp.show()
-			rt = time_resp - t1
+			rt = t1 - signal_onset
 			if rt >= RESPONSE_TIMEOUT:
 				keypress = 0
 			else:
 				keypress = 1 
 			time_left = RESPONSE_TIMEOUT - rt
-			print(rt, time_left)
 			timer.pause(time_left)
+
 
 			# log this trial
 			if currTrial[1] == 'go':
@@ -292,7 +314,7 @@ for i, currRun in enumerate(trials):
 					accu = 1 
 			#log.write(["trialnr", "block", "run","stim", "keypress", "go_nogo", "face_onset", "signal_onset","resp_onset", "RT", "accuracy", "respmap"])
 			#log.write(["trialnr", "block","run", "stim", "keypress", "go_nogo", "face_onset", "signal_onset","resp_onset", "RT", "accuracy", "respmap"])
-			log.write([str(iii), str(ii), str(i), currTrial[0], str(keypress), currTrial[1], str(stim_onset), str(signal_onset), str(time_resp), str(rt), str(accu), str(RESPMAP)])
+			log.write([str(iii), str(ii), str(i), currTrial[0], str(keypress), currTrial[1], str(stim_onset), str(signal_onset), str(time_resp), str(rt), str(accu), str(RESPMAP), currTrial[5]])
 
 
 

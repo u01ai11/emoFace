@@ -27,8 +27,8 @@ SCREENDIST = 62.0
 # FILES AND FOLDERS
 # Auto-detect folders.
 DIR = os.path.dirname(os.path.abspath(__file__))
-DATADIR = os.path.join(DIR, 'data/')
-RESDIR = os.path.join(DIR, 'resources/')
+DATADIR = os.path.join(DIR, 'data')
+RESDIR = os.path.join(DIR, 'resources')
 # Check whether these folders exist.
 if not os.path.isdir(DATADIR):
     os.mkdir(DATADIR)
@@ -51,11 +51,11 @@ RUNS = [0, 1]
 BLOCKS= ['n_g', 'n_n', 'h_g', 'h_n', 's_g', 's_n', 'c_g', 'c_n']
 
 NO_GO_TRIALS = 5 
-TRIALS_PER_BLOCK = 9
+TRIALS_PER_BLOCK = 18
 
 #MEG Button box info 
 # button_list = ["S3", "S4", "S5", "S6", "S7"]
-MAIN_BUT = "S3"
+MAIN_BUT = "B1"
 
 LEFT_BUT = "S3"
 RIGHT_BUT = "S4"

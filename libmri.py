@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 #
-# MRC CBU PYTHON MEG WRAPPER
+# MRC CBU PYTHON MRI WRAPPER
 #
 # This library is intended to allow for easy communication between our
 # experiment and the MEG setup at the MRC Cognition and Brain Sciences Unit.
@@ -46,12 +46,12 @@ class MRITriggerBox:
             "B4":   "port0/line4", \
             }
         
-        # Create a dict with all the trigger names and associated ports.
-        n_trigger_channels = 8
-        self._trigger_list = range(n_trigger_channels)
-        self._triggers = {}
-        for i in self._trigger_list:
-            self._triggers[i] = "port2/line%d" % (i)
+#        # Create a dict with all the trigger names and associated ports.
+#        n_trigger_channels = 8
+#        self._trigger_list = range(n_trigger_channels)
+#        self._triggers = {}
+#        for i in self._trigger_list:
+#            self._triggers[i] = "port2/line%d" % (i)
         
         # INITIALISE
         print("\nInitialising connection to the NI box...")
@@ -67,13 +67,13 @@ class MRITriggerBox:
         
         print("\nConnection established with '%s'!" % (self._dev_name))
         print("\tDevice: %s" % (self._dev))
-        print("\tDriver version: %s" % (system.driver_version))
+#        print("\tDriver version: %s" % (system.driver_version))
         print("\nChannel details:")
         print("Scanner pulse: %s" % (self._scan_chan))
         print("Buttons: %s" % (self._buttons))
     
     
-    def get_button_state(self, button_list=None):
+    def get_button_state(self, button_list=["B1"]):
         
         """Returns a single sample from the button channels.
         
@@ -100,6 +100,13 @@ class MRITriggerBox:
             # Get a single sample from the digital input channels.
             state = task.read(number_of_samples_per_channel=1, \
                 timeout=1.0)
+
+            # Inverse the states.
+            for i in range(len(state)):
+                if state[i]:
+                    state[i] = False
+                else:
+                    state[i] = True
         
         return button_list, state
     
@@ -110,24 +117,42 @@ class MRITriggerBox:
         t0 = time.time()
         # Create a new Task to listen in on the button channels.
         with nidaqmx.Task() as task:
+            # Add the digital input (di) channels.
+            task.di_channels.add_di_chan("%s/%s" % \
+                (self._dev_name, self._scan_chan))
             # Loop until a signal or a timeout happens.
             triggered = False
             timed_out = False
             while not triggered and not timed_out:
-                # Add the digital input (di) channels.
-                task.di_channels.add_di_chan("%s/%s:1" % \
-                    (self._dev_name, self._scan_chan))
                 # Get a single sample from the digital input channels.
-                state = task.read(number_of_samples_per_channel=1, timeout=1.0)
+                state = task.read(number_of_samples_per_channel=1, timeout=0.01)
                 t = time.time()
                 # Check the sample.
-                if state:
+                if state[0] == False:
                     triggered = True
                 # Check the time.
                 if t - t0 > timeout:
                     timed_out = True
         
         return t, triggered, timed_out
+    
+    
+    def _debug_output(self, filename, timeout=10.0):
+        
+        with nidaqmx.Task() as task:
+            task.di_channels.add_di_chan("%s/%s" % \
+                (self._dev_name, self._scan_chan))
+            task.start()
+            
+            t0 = time.time()
+            with open(filename, 'w') as f:
+                while time.time() - t0 < timeout:
+                    state = task.read(number_of_samples_per_channel=1, timeout=0.01)
+                    t = time.time()
+                    f.write("\t".join(map(str, [t-t0, state[0]])) + '\n')
+                    time.sleep(0.001)
+            
+            task.stop()
         
         
         
