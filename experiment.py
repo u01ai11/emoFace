@@ -16,20 +16,9 @@ import pygaze.libtime as timer
 from libmri import *
 
 
-MRI = True; # Flag for using button box and waiting for pulses/ seinding triggers etc 
-
 ##############
 # INITIALISE #
 ##############
-
-# get participant info etc
-LOGFILENAME = input("Participant name: ") 
-LOGFILE = LOGFILENAME[:] +'_trials'
-
-# response mapping 
-# 0 = go squares, no-go circles 
-# 1 = go circles, no-go squares
-RESPMAP = int(input("Response Mapping: "))
 
 # Initialise a new Display instance.
 disp = Display()
@@ -41,9 +30,13 @@ disp.fill(scr)
 disp.show()
 
 # Open a new log file.
-log = Logfile(filename = LOGFILE)
+log = Logfile()
 # TODO: Write header.
 log.write(["trialnr", "block", "run","stim", "keypress", "go_nogo", "face_onset", "signal_onset","resp_onset", "RT", "accuracy", "respmap", "block_type"])
+
+# Open a new log file to log events.
+event_log = Logfile(filename=EVENT_LOG)
+event_log.write(["time", "event"])
 
 # Initialise the eye tracker.
 tracker = EyeTracker(disp)
@@ -197,52 +190,81 @@ inter_block.draw_text(txt, fontsize=24)
 
 # loop through runs 
 for i, currRun in enumerate(trials):
+
+	# Inter-block break screen.
 	disp.fill(inter_run) # fill display
-	disp.show()# show display
+	t = disp.show()# show display
+	event_log.write([t, "run %d onset" % (i)])
+
 	### CONTINUE WHEN BUTTON PRESSED ###
 	if MRI: # if MEG repeatedly loop until button state changes
-		btn_pressed = False # set flag to false
-		while btn_pressed != True:
-			btn_list, state = trigbox.get_button_state(button_list = [MAIN_BUT])
-			if state[0] != 0:
-				btn_pressed = True
-	else: 
-		mouse.get_clicked()
+		button, t1 = trigbox.wait_for_button_press(allowed=[MAIN_BUT], timeout=None)
+		t1 = timer.get_time()
+#		btn_pressed = False # set flag to false
+#		while btn_pressed != True:
+#			btn_list, state = trigbox.get_button_state(button_list = [MAIN_BUT])
+#			# State turns to False, the button was pressed.
+#			if state[0] == False:
+#				btn_pressed = True
+	else:
+		mousebutton, clickpos, t1 = mouse.get_clicked()
+	event_log.write([t1, "buttonpress"])
 
 	# loop through blocks
-	for ii, currBlock in enumerate(currRun): 
+	for ii, currBlock in enumerate(currRun):
 
-
-		disp.fill(inter_block); # fill display
-		disp.show() # show display
+		# Countdown before a the pause screen to make sure that BOLD is down to
+		# baseline.
+		scr.clear()
+		scr.draw_text("Please wait for %d seconds..." % \
+			(numpy.ceil(INTERBLOCK_MIN_PAUSE/1000.0)), fontsize=24)
+		disp.fill(scr)
+		t0 = disp.show()
+		event_log.write([t, "block %d onset" % (ii)])
+		t1 = copy.deepcopy(t0)
+		while t1 - t0 < INTERBLOCK_MIN_PAUSE:
+			scr.clear()
+			scr.draw_text("Please wait for %d seconds..." % \
+				(numpy.ceil((INTERBLOCK_MIN_PAUSE-(t1-t0))/1000.0)), fontsize=24)
+			disp.fill(scr)
+			t1 = disp.show()
+			timer.pause(100)
+			disp.fill(inter_block); # fill display
+			disp.show() # show display
 		
 		### CONTINUE WHEN BUTTON PRESSED ###
 		if MRI: # if MEG repeatedly loop until button state changes
-			btn_pressed = False # set flag to false
-			while btn_pressed != True:
-				btn_list, state = trigbox.get_button_state(button_list = [MAIN_BUT])
-				if state[0] != 0:
-					btn_pressed = True
+			button, t1 = trigbox.wait_for_button_press(allowed=[MAIN_BUT], timeout=None)
+			t1 = timer.get_time()
+#			btn_pressed = False # set flag to false
+#			while not btn_pressed:
+#				btn_list, state = trigbox.get_button_state(button_list=[MAIN_BUT])
+#				if not state[0]:
+#					btn_pressed = True
 		else: 
-			mouse.get_clicked()
+			mousebutton, clickpos, t1 = mouse.get_clicked()
+		event_log.write([t1, "buttonpress"])
 
-		#TODO: Wait for Sync 
+		# Wait for Sync 
 		# adjusted_ITI = currTrial[2] - synctime 
 		if MRI:
-			i = 0
-			triggered = False
-			while not triggered:
-				t, triggered, timed_out = trigbox.wait_for_sync(timeout=60.0)
-				i += 1
-				if i > 3:
-					print("DEBUG: TOO MANY TIMEOUTS! BROKEN SYNC!")
-					break
+			t, triggered, timed_out = trigbox.wait_for_sync(timeout=None)
+			event_log.write([timer.get_time(), "MRI pulse"])
+#			i = 0
+#			triggered = False
+#			while not triggered:
+#				t, triggered, timed_out = trigbox.wait_for_sync(timeout=60.0)
+#				i += 1
+#				if i > 3:
+#					print("DEBUG: TOO MANY TIMEOUTS! BROKEN SYNC!")
+#					break
 
 		#loop through trials 
 		for iii, currTrial in enumerate(currBlock): 
 			
 			key, presstime = kb.get_key(keylist=['q', 'f', 'j'], timeout=1, flush=False)
 			if key == 'q':
+				event_log.write([presstime, "DEBUG KILL"])
 				log.close()
 				tracker.close()
 				disp.close()
@@ -261,16 +283,19 @@ for i, currRun in enumerate(trials):
 			#display ITI and pause for length of ITI 
 			disp.fill(fix_screen)
 			iti_onset = disp.show()
+			event_log.write([iti_onset, "trial %d onset" % iii])
 			timer.pause(currTrial[2]) #ITI delay
 
 			#display face only and pause for the stimulus onset
 			disp.fill(currTrial[4][0])
 			stim_onset = disp.show()
+			event_log.write([stim_onset, "stim onset"])
 			timer.pause(currTrial[3])
 
 			#display face and signal and pause for the remainder of face duration 
 			disp.fill(currTrial[4][1])
 			signal_onset = disp.show()
+			event_log.write([signal_onset, "signal onset"])
 			#timer.pause(FACE_DURATION - currTrial[3])
 
 			# response window and wait for response or timeout 
@@ -279,14 +304,18 @@ for i, currRun in enumerate(trials):
 			t1 = copy.copy(signal_onset)
 
 			if MRI: # if MRI repeatedly loop until button state changes or response timeout is met
-				btn_pressed = False # set flag to false
-				while btn_pressed != True and t1 - signal_onset < RESPONSE_TIMEOUT:
-					btn_list, state = trigbox.get_button_state(button_list = [MAIN_BUT])
-					t1 = timer.get_time()
-					if state[0] != 0:
-						btn_pressed = True
+				button, t1 = trigbox.wait_for_button_press(allowed=[MAIN_BUT], timeout=RESPONSE_TIMEOUT/1000.0)
+				t1 = timer.get_time()
+				event_log.write([t1, "button press"])
+#				btn_pressed = False # set flag to false
+#				while btn_pressed != True and t1 - signal_onset < RESPONSE_TIMEOUT:
+#					btn_list, state = trigbox.get_button_state(button_list = [MAIN_BUT])
+#					t1 = timer.get_time()
+#					if state[0] != 0:
+#						btn_pressed = True
 			else: 
 				button, pos, t1, = mouse.get_clicked(timeout = RESPONSE_TIMEOUT)
+				event_log.write([t1, "button press"])
 
 
 
@@ -320,6 +349,7 @@ for i, currRun in enumerate(trials):
 
 #Ending stuff 
 log.close()
+event_log.close()
 tracker.close()
 disp.close()
 
