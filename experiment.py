@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import copy
 import random
@@ -163,35 +164,42 @@ for i in range(len(trials)):
 These are screens that we re-use multiple times with no changes, so pre-generation is optimal 
 """
 
+
 # Fixation cross - we use this for ITI and the response window 
 fix_screen = Screen()
-fix_screen.draw_fixation(fixtype='cross', pw=3, diameter=8)
+fix_screen.draw_fixation(fixtype='cross', pw=2, diameter=15)
 
+#Response Mapping (0 = GO squares; 1 = GO circles):
+
+if RESPMAP == 0:
+	maptext = "When you see a SQUARE  ☐  press the button \n When you see a CIRCLE  ⚬  DO NOT PRESS"
+else:
+	maptext = "When you see a CIRCLE  ⚬  press the button, \n When you see a SQUARE  ☐  DO NOT PRESS"
 # Inter run screen 
 inter_run = Screen()
 txt = \
 """
-This is the screen before a run of trials 
+Welcome to the go or no-go game. 
+
+In this game you will see a number of pictures - please ignore these. 
+
+The aim is to look at the shape in the middle of the picture 
+
+""" + maptext + """
+
+Try and respond as quick as you can
 
 PRESS ANY BUTTON TO START RUN
 """
 inter_run.draw_text(txt, fontsize=24)
 
-#inter block screen 
-inter_block = Screen()
-txt = \
-"""
-This is the screen before a block of trials 
 
-PRESS ANY BUTTON TO START BLOCK
-"""
-inter_block.draw_text(txt, fontsize=24)
 
 
 # loop through runs 
 for i, currRun in enumerate(trials):
 
-	# Inter-block break screen.
+
 	disp.fill(inter_run) # fill display
 	t = disp.show()# show display
 	event_log.write([t, "run %d onset" % (i)])
@@ -212,7 +220,25 @@ for i, currRun in enumerate(trials):
 
 	# loop through blocks
 	for ii, currBlock in enumerate(currRun):
+		# Inter-block break screen.
+		#inter block screen 
+		inter_block = Screen()
+		txt = \
+		"""
+		You have 
+		""" + str((len(currRun)-ii)) + " blocks left and " + str((len(trials)-i)) +" runs left" + """ 
+		
+		This is a break, take as long as you need 
 
+		When you are ready to start remember: 
+
+		""" + maptext + """
+
+		Try and respond as quick as you can
+
+		PRESS ANY BUTTON TO START THE BLOCK 
+		"""
+		inter_block.draw_text(txt, fontsize=24)
 		# Countdown before a the pause screen to make sure that BOLD is down to
 		# baseline.
 		scr.clear()
@@ -220,7 +246,7 @@ for i, currRun in enumerate(trials):
 			(numpy.ceil(INTERBLOCK_MIN_PAUSE/1000.0)), fontsize=24)
 		disp.fill(scr)
 		t0 = disp.show()
-		event_log.write([t, "block %d onset" % (ii)])
+		event_log.write([t, "block %d onset " % (ii) + currBlock[0][5]])
 		t1 = copy.deepcopy(t0)
 		while t1 - t0 < INTERBLOCK_MIN_PAUSE:
 			scr.clear()
@@ -229,9 +255,10 @@ for i, currRun in enumerate(trials):
 			disp.fill(scr)
 			t1 = disp.show()
 			timer.pause(100)
-			disp.fill(inter_block); # fill display
+			disp.fill(scr); # fill display
 			disp.show() # show display
-		
+		disp.fill(inter_block)
+		disp.show()
 		### CONTINUE WHEN BUTTON PRESSED ###
 		if MRI: # if MEG repeatedly loop until button state changes
 			button, t1 = trigbox.wait_for_button_press(allowed=[MAIN_BUT], timeout=None)

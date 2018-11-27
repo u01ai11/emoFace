@@ -3,6 +3,7 @@
 # Version 1 (2018-07-26)
 
 import os
+import sys 
 
 # SCANNER SETTINGS
 # Flag for using button box and waiting for pulses/ seinding triggers etc 
@@ -41,14 +42,19 @@ if not os.path.isdir(RESDIR):
         % (RESDIR))
 
 # get participant info etc
-LOGFILENAME = raw_input("Participant name: ") + "_trials"
+if sys.version_info[0] < 3:
+	LOGFILENAME = raw_input("Participant name: ") + "_trials"
+else:
+	LOGFILENAME = "Alex_trials"
 LOGFILE = os.path.join(DATADIR, LOGFILENAME)
 EVENT_LOG = os.path.join(DATADIR, LOGFILENAME.replace("_trials", "_events"))
 # response mapping 
 # 0 = go squares, no-go circles 
 # 1 = go circles, no-go squares
-RESPMAP = int(raw_input("Response Mapping (0 = GO squares; 1 = GO circles): "))
-
+if sys.version_info[0] < 3:
+    RESPMAP = int(raw_input("Response Mapping (0 = GO squares; 1 = GO circles): "))
+else:
+	RESPMAP = 1
 
 # EXPERIMENT SETTINGS
 # response mapping 
