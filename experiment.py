@@ -97,12 +97,7 @@ for run in RUNS: # for each run
 		print(itis[0])
 		for ii in range(TRIALS_PER_BLOCK): # loop through all the trials 
 			trials[run][i][ii] = [[]] * 6
-			# DIRTY HACK!
-			if ii >= 9:
-				trials[run][i][ii][0] = prefix + '_' + str(ii+1) + '.jpg' #image name 
-			else:
-				trials[run][i][ii][0] = prefix + '_' + str(ii) + '.jpg' #image name 
-			
+			trials[run][i][ii][0] = prefix + '_' + str(ii) + '.jpg' #image name 
 			trials[run][i][ii][1] = conds[ii] # trial type 
 			trials[run][i][ii][2] = itis[ii] # iti time
 			trials[run][i][ii][3] = onsets[ii] # signal onset time 
@@ -172,9 +167,9 @@ fix_screen.draw_fixation(fixtype='cross', pw=2, diameter=15)
 #Response Mapping (0 = GO squares; 1 = GO circles):
 
 if RESPMAP == 0:
-	maptext = "When you see a SQUARE  ☐  press the button \n When you see a CIRCLE  ⚬  DO NOT PRESS"
+	mapimg = '0_inst.png'
 else:
-	maptext = "When you see a CIRCLE  ⚬  press the button, \n When you see a SQUARE  ☐  DO NOT PRESS"
+	mapimg = '1_inst.png'
 # Inter run screen 
 inter_run = Screen()
 txt = \
@@ -185,13 +180,10 @@ In this game you will see a number of pictures - please ignore these.
 
 The aim is to look at the shape in the middle of the picture 
 
-""" + maptext + """
-
-Try and respond as quick as you can
-
-PRESS ANY BUTTON TO START RUN
+PRESS ANY BUTTON TO START
 """
-inter_run.draw_text(txt, fontsize=24)
+inter_run.draw_text(txt, fontsize=36,pos=(DISPCENTRE[0], DISPCENTRE[1]-100))
+inter_run.draw_image(os.path.join(RESDIR, mapimg), pos=(DISPCENTRE[0],DISPCENTRE[1]+200), scale=0.5)
 
 
 
@@ -230,15 +222,10 @@ for i, currRun in enumerate(trials):
 		
 		This is a break, take as long as you need 
 
-		When you are ready to start remember: 
-
-		""" + maptext + """
-
-		Try and respond as quick as you can
-
 		PRESS ANY BUTTON TO START THE BLOCK 
 		"""
-		inter_block.draw_text(txt, fontsize=24)
+		inter_block.draw_image(os.path.join(RESDIR, mapimg), pos=(DISPCENTRE[0],DISPCENTRE[1]+200), scale=0.5)
+		inter_block.draw_text(txt, fontsize=36)
 		# Countdown before a the pause screen to make sure that BOLD is down to
 		# baseline.
 		scr.clear()
