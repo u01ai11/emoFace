@@ -182,8 +182,8 @@ The aim is to look at the shape in the middle of the picture
 
 PRESS ANY BUTTON TO START
 """
-inter_run.draw_text(txt, fontsize=36,pos=(DISPCENTRE[0], DISPCENTRE[1]-100))
-inter_run.draw_image(os.path.join(RESDIR, mapimg), pos=(DISPCENTRE[0],DISPCENTRE[1]+200), scale=0.5)
+inter_run.draw_text(txt, fontsize=36,pos=(DISPCENTRE[0], DISPCENTRE[1]-200))
+inter_run.draw_image(os.path.join(RESDIR, mapimg), pos=(DISPCENTRE[0],DISPCENTRE[1]+250), scale=0.5)
 
 
 
@@ -217,15 +217,23 @@ for i, currRun in enumerate(trials):
 		inter_block = Screen()
 		txt = \
 		"""
-		You have 
-		""" + str((len(currRun)-ii)) + " blocks left and " + str((len(trials)-i)) +" runs left" + """ 
-		
 		This is a break, take as long as you need 
 
 		PRESS ANY BUTTON TO START THE BLOCK 
 		"""
-		inter_block.draw_image(os.path.join(RESDIR, mapimg), pos=(DISPCENTRE[0],DISPCENTRE[1]+200), scale=0.5)
-		inter_block.draw_text(txt, fontsize=36)
+		inter_block.draw_image(os.path.join(RESDIR, mapimg), pos=(DISPCENTRE[0],DISPCENTRE[1]+50), scale=0.5)
+		inter_block.draw_text(txt, fontsize=36, pos=(DISPCENTRE[0],DISPCENTRE[1]-200))
+		
+		left = int(((1-i) * len(currRun)) + int(len(currRun) - ii)) 
+		inter_block.draw_text(str(left) + " blocks left", fontsize=36, pos=(DISPCENTRE[0],DISPCENTRE[1]+350), colour='green')
+
+		prg = 1.0 - (float(left) / float((len(trials)*len(currRun))))
+		#draw fill with proportion
+		inter_block.draw_rect(colour = 'green', x=DISPSIZE[0]*0.1, y=DISPCENTRE[1]+220, w=(DISPSIZE[0]*0.8)*prg, h=99, pw=1, fill=True)
+		#draw empty square 
+		inter_block.draw_rect(x=DISPSIZE[0]*0.1, y=DISPCENTRE[1]+220, w=DISPSIZE[0]*0.8, h=100, pw=1)
+
+
 		# Countdown before a the pause screen to make sure that BOLD is down to
 		# baseline.
 		scr.clear()
