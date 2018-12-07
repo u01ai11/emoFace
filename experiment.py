@@ -14,7 +14,7 @@ from pygaze.logfile import Logfile
 from pygaze.eyetracker import EyeTracker
 import pygaze.libtime as timer
 
-from libmri import *
+from scansync.mri import MRITriggerBox
 
 
 ##############
@@ -328,7 +328,8 @@ for i, currRun in enumerate(trials):
 			if MRI: # if MRI repeatedly loop until button state changes or response timeout is met
 				button, t1 = trigbox.wait_for_button_press(allowed=[MAIN_BUT], timeout=RESPONSE_TIMEOUT/1000.0)
 				t1 = timer.get_time()
-				event_log.write([t1, "button press"])
+				if button is not None:
+					event_log.write([t1, "button press"])
 #				btn_pressed = False # set flag to false
 #				while btn_pressed != True and t1 - signal_onset < RESPONSE_TIMEOUT:
 #					btn_list, state = trigbox.get_button_state(button_list = [MAIN_BUT])
@@ -337,12 +338,16 @@ for i, currRun in enumerate(trials):
 #						btn_pressed = True
 			else: 
 				button, pos, t1, = mouse.get_clicked(timeout = RESPONSE_TIMEOUT)
-				event_log.write([t1, "button press"])
+				if button is not None:
+					event_log.write([t1, "button press"])
 
+			# Turn the signal grey if a press occurred.
+			if button is not None:
+				disp.fill(currTrial[4][2])
+				time_resp = disp.show()
+			else:
+				time_resp = "NaN"
 
-
-			disp.fill(currTrial[4][2])
-			time_resp = disp.show()
 			rt = t1 - signal_onset
 			if rt >= RESPONSE_TIMEOUT:
 				keypress = 0
@@ -354,18 +359,19 @@ for i, currRun in enumerate(trials):
 
 			# log this trial
 			if currTrial[1] == 'go':
-				if keypress == 1: 
+				if button is not None: 
 					accu = 1
 				else:
 					accu = 0
 			else:
-				if keypress == 1:
+				if button is not None:
 					accu = 0
 				else:
 					accu = 1 
 			#log.write(["trialnr", "block", "run","stim", "keypress", "go_nogo", "face_onset", "signal_onset","resp_onset", "RT", "accuracy", "respmap"])
 			#log.write(["trialnr", "block","run", "stim", "keypress", "go_nogo", "face_onset", "signal_onset","resp_onset", "RT", "accuracy", "respmap"])
-			log.write([str(iii), str(ii), str(i), currTrial[0], str(keypress), currTrial[1], str(stim_onset), str(signal_onset), str(time_resp), str(rt), str(accu), str(RESPMAP), currTrial[5]])
+			#log.write([str(iii), str(ii), str(i), currTrial[0], str(keypress), currTrial[1], str(stim_onset), str(signal_onset), str(time_resp), str(rt), str(accu), str(RESPMAP), currTrial[5]])
+			log.write([iii, ii, i, currTrial[0], keypress, currTrial[1], stim_onset, signal_onset, time_resp, rt, accu, RESPMAP, currTrial[5]])
 
 
 
